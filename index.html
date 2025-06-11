@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Firebase Chat App (Beta)</title>
+  <style>
+    /* ===== BASE STYLES ===== */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: #1e1e2f;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ===== LAYOUT STYLES ===== */
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      width: 90%;
+    }
+    
+    .hidden { display: none !important; }
+    
+    /* ===== NAVIGATION ===== */
+    #nav {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      max-width: 800px;
+      margin: 10px auto;
+    }
+    
+    /* ===== AUTH SECTION ===== */
+    #auth h2, 
+    #chat h2, 
+    #settings h2 {
+      margin-bottom: 15px;
+      font-weight: 700;
+      border-bottom: 2px solid #3a3a59;
+      padding-bottom: 6px;
+    }
+    
+    /* ===== FORM ELEMENTS ===== */
+    input, button {
+      padding: 10px 12px;
+      margin: 8px 0;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
+    input::placeholder {
+      color: #bbb;
+    }
+    
+    button {
+      cursor: pointer;
+      background: #3a3a59;
+      color: #eee;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+    
+    button:hover {
+      background: #50507a;
+    }
+    
+    /* ===== MESSAGE STYLES ===== */
+    #messages {
+      height: 300px;
+      overflow-y: auto;
+      background: #2c2c44;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      line-height: 1.4;
+    }
+    
+    #messages div {
+      margin-bottom: 10px;
+    }
+    
+    #messages .user {
+      font-weight: 700;
+      color: #90caf9;
+      margin-right: 6px;
+    }
+    
+    #messages .text {
+      color: #eee;
+      word-wrap: break-word;
+    }
+    
+    /* ===== USERS LIST ===== */
+    #users-list {
+      max-height: 220px;
+      overflow-y: auto;
+      background: #2c2c44;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    
+    #users-list div {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    #users-list img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #90caf9;
+    }
+    
+    #users-list span {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #90caf9;
+    }
+    
+    /* ===== MESSAGE INPUT ===== */
+    #message-input {
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: none;
+      width: calc(100% - 90px);
+      margin-right: 8px;
+      font-size: 1rem;
+    }
+    
+    #btn-send {
+      width: 70px;
+      font-weight: 700;
+    }
+    
+    #chat form {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    /* ===== SETTINGS ===== */
+    #settings img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      margin-bottom: 12px;
+      border: 2px solid #90caf9;
+    }
+    
+    #settings input[type="file"] {
+      padding: 6px;
+    }
+    
+    /* ===== UTILITY STYLES ===== */
+    hr {
+      margin: 20px 0;
+      border-color: #3a3a59;
+    }
+    
+    .error-message {
+      color: #f55;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+    
+    .success-message {
+      color: #afa;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+    
+    .beta-label {
+      max-width: 800px;
+      margin: 10px auto;
+      font-size: 0.9rem;
+      color: #ccc;
+      text-align: center;
+      font-style: italic;
+    }
+    
+    .anonymous-btn {
+      margin-top: 12px;
+      background: #666 !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Beta Label -->
+  <div class="beta-label">
+    🚧 This app is currently in <strong>BETA</strong> — expect bugs and frequent updates!
+  </div>
+
+  <!-- Navigation -->
+  <div id="nav" class="hidden">
+    <button id="btn-settings">Settings</button>
+    <button id="btn-logout">Logout</button>
+  </div>
+
+  <!-- Auth Section -->
+  <div id="auth" class="container">
+    <h2>Sign Up / Sign In</h2>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="text" id="username" placeholder="Username (for Sign Up)" />
+    <input type="password" id="password" placeholder="Password" required />
+    <button id="btn-signup">Sign Up</button>
+    <button id="btn-signin">Sign In</button>
+    <hr />
+    <button id="btn-google">Sign In with Google</button>
+    <button id="btn-anonymous" class="anonymous-btn">Sign In Anonymously</button>
+    <div id="auth-error" class="error-message"></div>
+  </div>
+
+  <!-- Chat Section -->
+  <div id="chat" class="container hidden">
+    <h2>Chat Room</h2>
+    <div id="users-list"></div>
+    <div id="messages"></div>
+    <form id="message-form">
+      <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off" />
+      <button type="submit" id="btn-send">Send</button>
+    </form>
+  </div>
+
+  <!-- Settings Section -->
+  <div id="settings" class="container hidden">
+    <h2>User Settings</h2>
+    <img id="pfp-preview" src="" alt="Profile Picture" />
+    <input type="file" id="pfp-file" accept="image/*" />
+    <input type="text" id="settings-username" placeholder="Change Username" />
+    <button id="btn-save-settings">Save Settings</button>
+    <button id="btn-back-chat">Back to Chat</button>
+    <div id="settings-msg" class="success-message"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Firebase imports from CDN
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-analytics.js";
+    import {
+      getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+      GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, updateProfile,
+      signInAnonymously
+    } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+    import {
+      getFirestore, collection, addDoc, query, orderBy,
+      onSnapshot, doc, getDoc, updateDoc, setDoc, getDocs
+    } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+    import {
+      getStorage, ref, uploadBytes, getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-storage.js";
+
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAzEgIU5lzKxxhc7Lh0YfCfI_WbT2hePKU",
+      authDomain: "test-26e52.firebaseapp.com",
+      projectId: "test-26e52",
+      storageBucket: "test-26e52.appspot.com",
+      messagingSenderId: "182043653435",
+      appId: "1:182043653435:web:fe99105ff92315b30af31e",
+      measurementId: "G-7H9EKW7WS3"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // DOM Elements
+    const authDiv = document.getElementById('auth');
+    const chatDiv = document.getElementById('chat');
+    const settingsDiv = document.getElementById('settings');
+    const navDiv = document.getElementById('nav');
+
+    // Auth Elements
+    const emailInput = document.getElementById('email');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const authErrorDiv = document.getElementById('auth-error');
+
+    // Button Elements
+    const btnSignup = document.getElementById('btn-signup');
+    const btnSignin = document.getElementById('btn-signin');
+    const btnGoogle = document.getElementById('btn-google');
+    const btnAnonymous = document.getElementById('btn-anonymous');
+    const btnLogout = document.getElementById('btn-logout');
+    const btnSettings = document.getElementById('btn-settings');
+
+    // Chat Elements
+    const usersListDiv = document.getElementById('users-list');
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const btnSend = document.getElementById('btn-send');
+    const messageForm = document.getElementById('message-form');
+
+    // Settings Elements
+    const pfpPreview = document.getElementById('pfp-preview');
+    const pfpFileInput = document.getElementById('pfp-file');
+    const settingsUsernameInput = document.getElementById('settings-username');
+    const btnSaveSettings = document.getElementById('btn-save-settings');
+    const btnBackChat = document.getElementById('btn-back-chat');
+    const settingsMsgDiv = document.getElementById('settings-msg');
+
+    // App State
+    let currentUser = null;
+    let unsubscribeMessages = null;
+    let unsubscribeUsers = null;
+
+    // ===== UTILITY FUNCTIONS =====
+    function validateUsername(name) {
+      const badWords = ['nigger','fuck','shit','bitch','asshole','nigga','faggot','dick'];
+      if (!name) return false;
+      const cleanName = name.trim().toLowerCase();
+      if (cleanName.length < 3 || cleanName.length > 20) return false;
+      if (cleanName.includes(' ')) return false;
+      if (badWords.some(w => cleanName.includes(w))) return false;
+      return true;
+    }
+
+    async function isUsernameTaken(name) {
+      const usersCol = collection(db, 'users');
+      const q = query(usersCol);
+      const snapshot = await getDocs(q);
+      return snapshot.docs.some(doc => doc.data().username === name);
+    }
+
+    function showSection(section) {
+      authDiv.classList.add('hidden');
+      chatDiv.classList.add('hidden');
+      settingsDiv.classList.add('hidden');
+      navDiv.classList.add('hidden');
+      
+      if (section === 'auth') authDiv.classList.remove('hidden');
+      else if (section === 'chat') {
+        chatDiv.classList.remove('hidden');
+        navDiv.classList.remove('hidden');
+      }
+      else if (section === 'settings') {
+        settingsDiv.classList.remove('hidden');
+        navDiv.classList.remove('hidden');
+      }
+    }
+
+    // ===== RENDER FUNCTIONS =====
+    function renderUsers(users) {
+      usersListDiv.innerHTML = users.map(u => `
+        <div>
+          <img src="${u.photoURL || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" alt="User Pic" />
+          <span>${u.username || u.email || 'Anonymous'}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderMessages(messages) {
+      messagesDiv.innerHTML = messages.map(m => `
+        <div>
+          <span class="user">${m.username || m.email || 'Anonymous'}</span>
+          <span class="text">: ${m.text}</span>
+        </div>
+      `).join('');
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // ===== CHAT FUNCTIONS =====
+    function subscribeToChat() {
+      const messagesCol = collection(db, 'messages');
+      const messagesQuery = query(messagesCol, orderBy('createdAt', 'asc'));
+      unsubscribeMessages = onSnapshot(messagesQuery, snapshot => {
+        renderMessages(snapshot.docs.map(doc => doc.data()));
+      });
+      
+      const usersCol = collection(db, 'users');
+      unsubscribeUsers = onSnapshot(usersCol, snapshot => {
+        renderUsers(snapshot.docs.map(doc => doc.data()));
+      });
+    }
+
+    // ===== USER PROFILE FUNCTIONS =====
+    async function saveUserProfile(user) {
+      const userDoc = doc(db, 'users', user.uid);
+      const userData = {
+        uid: user.uid,
+        email: user.email,
+        username: user.displayName || 'Anonymous',
+        photoURL: user.photoURL || ''
+      };
+      await setDoc(userDoc, userData, { merge: true });
+    }
+
+    async function updateUserProfileData(uid, data) {
+      const userDoc = doc(db, 'users', uid);
+      await updateDoc(userDoc, data);
+    }
+
+    async function loadUserProfile(uid) {
+      const userDoc = doc(db, 'users', uid);
+      const docSnap = await getDoc(userDoc);
+      return docSnap.exists() ? docSnap.data() : null;
+    }
+
+    // ===== AUTH STATE LISTENER =====
+    onAuthStateChanged(auth, async user => {
+      if (user) {
+        currentUser = user;
+        const profile = await loadUserProfile(user.uid);
+        if (!profile) await saveUserProfile(user);
+        showSection('chat');
+        subscribeToChat();
+      } else {
+        currentUser = null;
+        if (unsubscribeMessages) unsubscribeMessages();
+        if (unsubscribeUsers) unsubscribeUsers();
+        showSection('auth');
+      }
+    });
+
+    // ===== EVENT LISTENERS =====
+    // Auth Event Listeners
+    btnSignup.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const username = usernameInput.value.trim();
+
+      authErrorDiv.textContent = '';
+      
+      if (!validateUsername(username)) {
+        authErrorDiv.textContent = 'Invalid username (3-20 chars, no spaces or bad words).';
+        return;
+      }
+
+      if (await isUsernameTaken(username)) {
+        authErrorDiv.textContent = 'Username already taken.';
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: username });
+        await saveUserProfile(userCredential.user);
+      } catch (e) {
+        authErrorDiv.textContent = e.message;
+      }
+    });
+
+    btnSignin.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      authErrorDiv.textContent = '';
+      
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        authErrorDiv.textContent = e.message;
+      }
+    });
+
+    btnGoogle.addEventListener('click', async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        await saveUserProfile(result.user);
+      } catch (e) {
+        authErrorDiv.textContent = e.message;
+      }
+    });
+
+    btnAnonymous.addEventListener('click', async () => {
+      authErrorDiv.textContent = '';
+      try {
+        const result = await signInAnonymously(auth);
+        await saveUserProfile(result.user);
+      } catch (e) {
+        authErrorDiv.textContent = e.message;
+      }
+    });
+
+    btnLogout.addEventListener('click', () => signOut(auth));
+
+    // Chat Event Listeners
+    messageForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text) return;
+      
+      try {
+        await addDoc(collection(db, 'messages'), {
+          uid: currentUser.uid,
+          username: currentUser.displayName || 'Anonymous',
+          email: currentUser.email,
+          text,
+          createdAt: new Date()
+        });
+        messageInput.value = '';
+      } catch (e) {
+        alert('Error sending message: ' + e.message);
+      }
+    });
+
+    // Settings Event Listeners
+    btnSettings.addEventListener('click', async () => {
+      showSection('settings');
+      settingsMsgDiv.textContent = '';
+      settingsUsernameInput.value = currentUser.displayName || '';
+      pfpPreview.src = currentUser.photoURL || 'https://www.gravatar.com/avatar/?d=mp&f=y';
+    });
+
+    btnBackChat.addEventListener('click', () => showSection('chat'));
+
+    btnSaveSettings.addEventListener('click', async () => {
+      const newUsername = settingsUsernameInput.value.trim();
+      
+      if (!validateUsername(newUsername)) {
+        settingsMsgDiv.style.color = '#f55';
+        settingsMsgDiv.textContent = 'Invalid username (3-20 chars, no spaces or bad words).';
+        return;
+      }
+      
+      if (newUsername !== currentUser.displayName && await isUsernameTaken(newUsername)) {
+        settingsMsgDiv.style.color = '#f55';
+        settingsMsgDiv.textContent = 'Username already taken.';
+        return;
+      }
+
+      settingsMsgDiv.textContent = 'Saving...';
+
+      // Update username
+      await updateProfile(currentUser, { displayName: newUsername });
+      await updateUserProfileData(currentUser.uid, { username: newUsername });
+
+      // Upload profile picture if selected
+      if (pfpFileInput.files.length > 0) {
+        const file = pfpFileInput.files[0];
+        const storageRef = ref(storage, `profile_pictures/${currentUser.uid}`);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        await updateProfile(currentUser, { photoURL: url });
+        await updateUserProfileData(currentUser.uid, { photoURL: url });
+        pfpPreview.src = url;
+      }
+
+      settingsMsgDiv.style.color = '#afa';
+      settingsMsgDiv.textContent = 'Settings saved!';
+      currentUser = auth.currentUser; // Refresh currentUser data
+    });
+
+    // Profile Picture Preview
+    pfpFileInput.addEventListener('change', () => {
+      if (pfpFileInput.files.length === 0) return;
+      pfpPreview.src = URL.createObjectURL(pfpFileInput.files[0]);
+    });
+  </script>
+</body>
+</html>
